@@ -202,12 +202,12 @@ namespace mod_db_mysql
             else if (from > DateTime.MinValue)
             {
                 string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3} AND `timestamp` >= '{4}' LIMIT 1000";
-                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, assetFilter, from.ToUnixTime(), count);
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, assetFilter, from.ToUnixTime());
             }
             else if (to > DateTime.MinValue)
             {
                 string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3} AND `timestamp` <= '{4}' LIMIT 1000";
-                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, assetFilter, to.ToUnixTime(), count);
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, assetFilter, to.ToUnixTime());
             }
             else if (count > 0)
             {
@@ -367,6 +367,120 @@ namespace mod_db_mysql
             if (!dataItemIds.IsNullOrEmpty()) samples = samples.FindAll(o => dataItemIds.ToList().Exists(x => x == o.Id));
 
             return samples;
+        }
+
+        /// <summary>
+        /// Read Rejected Parts from the database
+        /// </summary>
+        public List<RejectedPart> ReadRejectedParts(string deviceId, string[] partIds, DateTime from, DateTime to, DateTime at)
+        {
+            var parts = new List<RejectedPart>();
+
+            string COLUMNS = "*";
+            string TABLENAME = "parts_rejected";
+
+            string partIdFilter = "";
+
+            if (partIds != null && partIds.Length > 0)
+            {
+                for (int i = 0; i < partIds.Length; i++)
+                {
+                    partIdFilter += "`part_id`='" + partIds[i] + "'";
+                    if (i < partIds.Length - 1) partIdFilter += " OR ";
+                }
+
+                partIdFilter = string.Format(" AND ({0}) ", partIdFilter);
+            }
+
+            string query = null;
+
+            // Create query
+            if (from > DateTime.MinValue && to > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3} AND `timestamp` >= '{4}' AND `timestamp` <= '{5}'";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, from.ToUnixTime(), to.ToUnixTime());
+            }
+            else if (from > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3} AND `timestamp` >= '{4}' LIMIT 1000";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, from.ToUnixTime());
+            }
+            else if (to > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3} AND `timestamp` <= '{4}' LIMIT 1000";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, to.ToUnixTime());
+            }
+            else if (at > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3} AND `timestamp` = '{4}'";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, at.ToUnixTime());
+            }
+            else
+            {
+                string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3}";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter);
+            }
+
+            if (!string.IsNullOrEmpty(query)) parts = ReadList<RejectedPart>(query);
+
+            return parts;
+        }
+
+        /// <summary>
+        /// Read Verified Parts from the database
+        /// </summary>
+        public List<VerifiedPart> ReadVerifiedParts(string deviceId, string[] partIds, DateTime from, DateTime to, DateTime at)
+        {
+            var parts = new List<VerifiedPart>();
+
+            string COLUMNS = "*";
+            string TABLENAME = "parts_verified";
+
+            string partIdFilter = "";
+
+            if (partIds != null && partIds.Length > 0)
+            {
+                for (int i = 0; i < partIds.Length; i++)
+                {
+                    partIdFilter += "`part_id`='" + partIds[i] + "'";
+                    if (i < partIds.Length - 1) partIdFilter += " OR ";
+                }
+
+                partIdFilter = string.Format(" AND ({0}) ", partIdFilter);
+            }
+
+            string query = null;
+
+            // Create query
+            if (from > DateTime.MinValue && to > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3} AND `timestamp` >= '{4}' AND `timestamp` <= '{5}'";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, from.ToUnixTime(), to.ToUnixTime());
+            }
+            else if (from > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3} AND `timestamp` >= '{4}' LIMIT 1000";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, from.ToUnixTime());
+            }
+            else if (to > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3} AND `timestamp` <= '{4}' LIMIT 1000";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, to.ToUnixTime());
+            }
+            else if (at > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3} AND `timestamp` = '{4}'";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, at.ToUnixTime());
+            }
+            else
+            {
+                string qf = "SELECT {0} FROM `{1}` WHERE `device_id` = '{2}'{3}";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter);
+            }
+
+            if (!string.IsNullOrEmpty(query)) parts = ReadList<VerifiedPart>(query);
+
+            return parts;
         }
 
         /// <summary>
@@ -728,6 +842,75 @@ namespace mod_db_mysql
         }
 
         /// <summary>
+        /// Write RejectedParts to the database
+        /// </summary>
+        public bool Write(List<RejectedPart> parts)
+        {
+            if (!parts.IsNullOrEmpty())
+            {
+                string COLUMNS = "`device_id`, `part_id`, `timestamp`, `message`";
+                string QUERY_FORMAT = "INSERT IGNORE INTO `parts_rejected` ({0}) VALUES {1} ON DUPLICATE KEY UPDATE {2}";
+                string VALUE_FORMAT = "('{0}','{1}',{2},'{3}')";
+                string UPDATE_FORMAT = "`timestamp`={0},`message`='{1}'";
+
+                var queries = new List<string>();
+                foreach (var part in parts)
+                {
+                    string values = string.Format(VALUE_FORMAT,
+                             EscapeString(part.DeviceId),
+                             EscapeString(part.PartId),
+                             part.Timestamp.ToUnixTime(),
+                             EscapeString(part.Message));
+
+                    string updates = string.Format(UPDATE_FORMAT,
+                             part.Timestamp.ToUnixTime(),
+                             EscapeString(part.Message));
+
+                    queries.Add(string.Format(QUERY_FORMAT, COLUMNS, values, updates));
+                }
+
+                string query = string.Join(";", queries);
+
+                return Write(query);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Write VerifiedParts to the database
+        /// </summary>
+        public bool Write(List<VerifiedPart> parts)
+        {
+            if (!parts.IsNullOrEmpty())
+            {
+                string COLUMNS = "`device_id`, `part_id`, `timestamp`, `message`";
+                string QUERY_FORMAT = "INSERT IGNORE INTO `parts_verified` ({0}) VALUES {1}";
+                string VALUE_FORMAT = "('{0}','{1}',{2},'{3}')";
+
+                // Build VALUES string
+                var v = new string[parts.Count];
+                for (var i = 0; i < parts.Count; i++)
+                {
+                    var d = parts[i];
+                    v[i] = string.Format(VALUE_FORMAT,
+                        EscapeString(d.DeviceId),
+                        EscapeString(d.PartId),
+                        d.Timestamp.ToUnixTime(),
+                        EscapeString(d.Message));
+                }
+                string values = string.Join(",", v);
+
+                // Build Query string
+                string query = string.Format(QUERY_FORMAT, COLUMNS, values);
+
+                return Write(query);
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Write StatusData to the database
         /// </summary>
         public bool Write(List<StatusData> definitions)
@@ -753,6 +936,52 @@ namespace mod_db_mysql
 
                 // Build Query string
                 string query = string.Format(QUERY_FORMAT, COLUMNS, values);
+
+                return Write(query);
+            }
+
+            return false;
+        }
+
+        #endregion
+
+        #region "Delete"
+
+        /// <summary>
+        /// Delete RejectedParts from the database
+        /// </summary>
+        public bool DeleteRejectedPart(string deviceId, string partId)
+        {
+            if (!deviceId.IsNullOrEmpty() && !partId.IsNullOrEmpty())
+            {
+                string QUERY_FORMAT = "DELETE FROM `parts_rejected` WHERE {0}";
+                string WHERE_FORMAT = "(`device_id`='{0}' AND `part_id`='{1}')";
+
+                string where = string.Format(WHERE_FORMAT, EscapeString(deviceId), EscapeString(partId));
+
+                // Build Query string
+                string query = string.Format(QUERY_FORMAT, where);
+
+                return Write(query);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Delete VerifiedParts from the database
+        /// </summary>
+        public bool DeleteVerifiedPart(string deviceId, string partId)
+        {
+            if (!deviceId.IsNullOrEmpty() && !partId.IsNullOrEmpty())
+            {
+                string QUERY_FORMAT = "DELETE FROM `parts_verified` WHERE {0}";
+                string WHERE_FORMAT = "(`device_id`='{0}' AND `part_id`='{1}')";
+
+                string where = string.Format(WHERE_FORMAT, EscapeString(deviceId), EscapeString(partId));
+
+                // Build Query string
+                string query = string.Format(QUERY_FORMAT, where);
 
                 return Write(query);
             }

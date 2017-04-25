@@ -238,7 +238,6 @@ namespace mod_db_sql
             return assets;
         }
 
-
         /// <summary>
         /// Read the ComponentDefinitions for the specified Agent Instance Id from the database
         /// </summary>
@@ -376,6 +375,120 @@ namespace mod_db_sql
             if (!dataItemIds.IsNullOrEmpty()) samples = samples.FindAll(o => dataItemIds.ToList().Exists(x => x == o.Id));
 
             return samples;
+        }
+
+        /// <summary>
+        /// Read RejectedParts from the database
+        /// </summary>
+        public List<RejectedPart> ReadRejectedParts(string deviceId, string[] partIds, DateTime from, DateTime to, DateTime at)
+        {
+            var parts = new List<RejectedPart>();
+
+            string COLUMNS = "*";
+            string TABLENAME = "parts_rejected";
+
+            string partIdFilter = "";
+
+            if (partIds != null && partIds.Length > 0)
+            {
+                for (int i = 0; i < partIds.Length; i++)
+                {
+                    partIdFilter += "[part_id]='" + partIds[i] + "'";
+                    if (i < partIds.Length - 1) partIdFilter += " OR ";
+                }
+
+                partIdFilter = string.Format(" AND ({0}) ", partIdFilter);
+            }
+
+            string query = null;
+
+            // Create query
+            if (from > DateTime.MinValue && to > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM [{1}] WHERE [device_id] = '{2}'{3} AND [timestamp] >= '{4}' AND [timestamp] <= '{5}'";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, from.ToUnixTime(), to.ToUnixTime());
+            }
+            else if (from > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM [{1}] WHERE [device_id] = '{2}'{3} AND [timestamp] >= '{4}' LIMIT 1000";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, from.ToUnixTime());
+            }
+            else if (to > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM [{1}] WHERE [device_id] = '{2}'{3} AND [timestamp] <= '{4}' LIMIT 1000";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, to.ToUnixTime());
+            }
+            else if (at > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM [{1}] WHERE [device_id] = '{2}'{3} AND [timestamp] = '{4}'";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, at.ToUnixTime());
+            }
+            else
+            {
+                string qf = "SELECT {0} FROM [{1}] WHERE [device_id] = '{2}'{3}";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter);
+            }
+
+            if (!string.IsNullOrEmpty(query)) parts = ReadList<RejectedPart>(query);
+
+            return parts;
+        }
+
+        /// <summary>
+        /// Read VerifiedParts from the database
+        /// </summary>
+        public List<VerifiedPart> ReadVerifiedParts(string deviceId, string[] partIds, DateTime from, DateTime to, DateTime at)
+        {
+            var parts = new List<VerifiedPart>();
+
+            string COLUMNS = "*";
+            string TABLENAME = "parts_verified";
+
+            string partIdFilter = "";
+
+            if (partIds != null && partIds.Length > 0)
+            {
+                for (int i = 0; i < partIds.Length; i++)
+                {
+                    partIdFilter += "[part_id]='" + partIds[i] + "'";
+                    if (i < partIds.Length - 1) partIdFilter += " OR ";
+                }
+
+                partIdFilter = string.Format(" AND ({0}) ", partIdFilter);
+            }
+
+            string query = null;
+
+            // Create query
+            if (from > DateTime.MinValue && to > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM [{1}] WHERE [device_id] = '{2}'{3} AND [timestamp] >= '{4}' AND [timestamp] <= '{5}'";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, from.ToUnixTime(), to.ToUnixTime());
+            }
+            else if (from > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM [{1}] WHERE [device_id] = '{2}'{3} AND [timestamp] >= '{4}' LIMIT 1000";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, from.ToUnixTime());
+            }
+            else if (to > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM [{1}] WHERE [device_id] = '{2}'{3} AND [timestamp] <= '{4}' LIMIT 1000";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, to.ToUnixTime());
+            }
+            else if (at > DateTime.MinValue)
+            {
+                string qf = "SELECT {0} FROM [{1}] WHERE [device_id] = '{2}'{3} AND [timestamp] = '{4}'";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter, at.ToUnixTime());
+            }
+            else
+            {
+                string qf = "SELECT {0} FROM [{1}] WHERE [device_id] = '{2}'{3}";
+                query = string.Format(qf, COLUMNS, TABLENAME, deviceId, partIdFilter);
+            }
+
+            if (!string.IsNullOrEmpty(query)) parts = ReadList<VerifiedPart>(query);
+
+            return parts;
         }
 
         /// <summary>
@@ -824,6 +937,96 @@ namespace mod_db_sql
         }
 
         /// <summary>
+        /// Write RejectedParts to the database
+        /// </summary>
+        public bool Write(List<RejectedPart> parts)
+        {
+            if (!parts.IsNullOrEmpty())
+            {
+                string COLUMNS = "[device_id], [part_id], [timestamp], [message]";
+                string VALUES = "(@deviceId, @partId, @timestamp, @message)";
+                string UPDATE = "[timestamp]=@timestamp, [message]=@message";
+                string WHERE = "[device_id]=@deviceId AND [part_id]=@partId";
+
+                string QUERY_FORMAT = "IF NOT EXISTS(SELECT * FROM [parts_rejected] WHERE {0}) BEGIN {1} END ELSE BEGIN {2} END";
+                string INSERT_FORMAT = "INSERT INTO [parts_rejected] ({0}) VALUES {1}";
+                string UPDATE_FORMAT = "UPDATE [parts_rejected] SET {0} WHERE {1}";
+
+                string insert = string.Format(INSERT_FORMAT, COLUMNS, VALUES);
+                string update = string.Format(UPDATE_FORMAT, UPDATE, WHERE);
+                string query = string.Format(QUERY_FORMAT, WHERE, insert, update);
+
+                bool success = true;
+
+                foreach (var part in parts)
+                {
+                    using (var command = new SqlCommand(query))
+                    {
+                        command.Parameters.AddWithValue("@deviceId", part.DeviceId ?? Convert.DBNull);
+                        command.Parameters.AddWithValue("@id", part.PartId ?? Convert.DBNull);
+                        command.Parameters.AddWithValue("@timestamp", part.Timestamp.ToUnixTime());
+                        command.Parameters.AddWithValue("@cdata", part.Message ?? Convert.DBNull);
+
+                        success = Write(command);
+                    }
+
+                    if (!success) break;
+                }
+
+                return success;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Write VerifiedParts to the database
+        /// </summary>
+        public bool Write(List<VerifiedPart> parts)
+        {
+            if (!parts.IsNullOrEmpty())
+            {
+                string COLUMNS = "[device_id], [part_id], [timestamp], [message]";
+                string VALUES = "(@deviceId, @partId, @timestamp, @message)";
+                string UPDATE = "[timestamp]=@timestamp, [message]=@message";
+                string WHERE = "[device_id]=@deviceId AND [part_id]=@partId";
+
+                string QUERY_FORMAT = "IF NOT EXISTS(SELECT * FROM [parts_verified] WHERE {0}) BEGIN {1} END ELSE BEGIN {2} END";
+                string INSERT_FORMAT = "INSERT INTO [parts_verified] ({0}) VALUES {1}";
+                string UPDATE_FORMAT = "UPDATE [parts_verified] SET {0} WHERE {1}";
+
+                string insert = string.Format(INSERT_FORMAT, COLUMNS, VALUES);
+                string update = string.Format(UPDATE_FORMAT, UPDATE, WHERE);
+                string query = string.Format(QUERY_FORMAT, WHERE, insert, update);
+
+                bool success = true;
+
+                foreach (var part in parts)
+                {
+                    using (var command = new SqlCommand(query))
+                    {
+                        command.Parameters.AddWithValue("@deviceId", part.DeviceId ?? Convert.DBNull);
+                        command.Parameters.AddWithValue("@id", part.PartId ?? Convert.DBNull);
+                        command.Parameters.AddWithValue("@timestamp", part.Timestamp.ToUnixTime());
+                        command.Parameters.AddWithValue("@cdata", part.Message ?? Convert.DBNull);
+
+                        success = Write(command);
+                    }
+
+                    if (!success) break;
+                }
+
+                return success;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Write StatusData to the database
         /// </summary>
         public bool Write(List<StatusData> statuses)
@@ -863,6 +1066,52 @@ namespace mod_db_sql
                 }
 
                 return success;
+            }
+
+            return false;
+        }
+
+        #endregion
+
+        #region "Delete"
+
+        /// <summary>
+        /// Delete RejectedParts from the database
+        /// </summary>
+        public bool DeleteRejectedPart(string deviceId, string partId)
+        {
+            if (!deviceId.IsNullOrEmpty() && !partId.IsNullOrEmpty())
+            {
+                string query = "DELETE FROM `parts_rejected` WHERE `device_id`=@deviceId AND `part_id`=@partId";
+
+                using (var command = new SqlCommand(query))
+                {
+                    command.Parameters.AddWithValue("@deviceId", deviceId ?? Convert.DBNull);
+                    command.Parameters.AddWithValue("@id", partId ?? Convert.DBNull);
+
+                    return Write(command);
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Delete VerifiedParts from the database
+        /// </summary>
+        public bool DeleteVerifiedPart(string deviceId, string partId)
+        {
+            if (!deviceId.IsNullOrEmpty() && !partId.IsNullOrEmpty())
+            {
+                string query = "DELETE FROM `parts_verified` WHERE `device_id`=@deviceId AND `part_id`=@partId";
+
+                using (var command = new SqlCommand(query))
+                {
+                    command.Parameters.AddWithValue("@deviceId", deviceId ?? Convert.DBNull);
+                    command.Parameters.AddWithValue("@id", partId ?? Convert.DBNull);
+
+                    return Write(command);
+                }
             }
 
             return false;

@@ -148,15 +148,29 @@ BEGIN
 	PRIMARY KEY ([device_id], [agent_instance_id], [id]),
 	);
 END
+
 -- Create the Rejected Parts table
-IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'rejected_parts')
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'parts_rejected')
 BEGIN
-	CREATE TABLE rejected_parts (
+	CREATE TABLE parts_rejected (
 
 	[device_id] varchar(90) NOT NULL,
 	[part_id] varchar(90) NOT NULL,
 	[timestamp] bigint NOT NULL,
-	rejected bit,
+	[message] varchar(300) NOT NULL,
+
+	PRIMARY KEY ([device_id], [part_id]),
+	);
+END
+
+-- Create the Verified Parts table
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'parts_verified')
+BEGIN
+	CREATE TABLE parts_verified (
+
+	[device_id] varchar(90) NOT NULL,
+	[part_id] varchar(90) NOT NULL,
+	[timestamp] bigint NOT NULL,
 	[message] varchar(300) NOT NULL,
 
 	PRIMARY KEY ([device_id], [part_id]),

@@ -136,12 +136,22 @@ INDEX (`device_id`)
 );
 
 # Create the Rejected Parts table
-CREATE TABLE IF NOT EXISTS `rejected_parts` (
+CREATE TABLE IF NOT EXISTS `parts_rejected` (
 
 `device_id` varchar(90) NOT NULL,
 `part_id` varchar(90) NOT NULL,
 `timestamp` bigint NOT NULL,
-`rejected` int(1) DEFAULT 0 NOT NULL,
+`message` varchar(300) NOT NULL,
+
+PRIMARY KEY (`device_id`, `part_id`)
+);
+
+# Create the Verified Parts table
+CREATE TABLE IF NOT EXISTS `parts_verified` (
+
+`device_id` varchar(90) NOT NULL,
+`part_id` varchar(90) NOT NULL,
+`timestamp` bigint NOT NULL,
 `message` varchar(300) NOT NULL,
 
 PRIMARY KEY (`device_id`, `part_id`)
