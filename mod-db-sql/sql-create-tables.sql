@@ -73,7 +73,7 @@ BEGIN
 	[timestamp] bigint NOT NULL,
 	[agent_instance_id] bigint NOT NULL,
 	[type] varchar(90) NOT NULL,
-	[xml] blob NOT NULL,
+	[xml] VARBINARY(MAX) NOT NULL,
 
 	PRIMARY KEY ([device_id], [id], [timestamp]),
 	);
