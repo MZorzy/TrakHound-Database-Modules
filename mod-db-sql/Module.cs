@@ -517,8 +517,8 @@ namespace mod_db_sql
                     connection.Open();
                     command.CommandTimeout = 300;
                     command.Connection = connection;
-                    logger.Trace(command.CommandText);
-                    return command.ExecuteNonQuery() >= 0;
+                    command.ExecuteNonQuery();
+                    return  true; // No Exception so query was successful
                 }
             }
             catch (SqlException ex) { logger.Warn(ex); }
@@ -871,7 +871,7 @@ namespace mod_db_sql
                         command.Parameters.AddWithValue("@timestamp", s.Timestamp.ToUnixTime());
                         command.Parameters.AddWithValue("@agentInstanceId", s.AgentInstanceId);
                         command.Parameters.AddWithValue("@sequence", s.Sequence);
-                        command.Parameters.AddWithValue("@cdata", s.CDATA ?? Convert.DBNull);
+                        command.Parameters.AddWithValue("@cdata", s.CDATA.IsNullOrEmpty() ? Convert.DBNull : s.CDATA);
                         command.Parameters.AddWithValue("@condition", s.Condition ?? Convert.DBNull);
 
                         success = Write(command);
