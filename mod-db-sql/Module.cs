@@ -515,7 +515,9 @@ namespace mod_db_sql
                 {
                     // Open the connection
                     connection.Open();
+                    command.CommandTimeout = 300;
                     command.Connection = connection;
+                    logger.Trace(command.CommandText);
                     return command.ExecuteNonQuery() >= 0;
                 }
             }
